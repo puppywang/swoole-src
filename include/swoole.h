@@ -54,6 +54,8 @@ extern "C" {
 #include <sys/un.h>
 #include <sys/types.h>
 
+#include <nanomsg/nn.h>
+
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach_time.h>
@@ -193,14 +195,24 @@ enum swServer_mode
 //-------------------------------------------------------------------------------
 enum swSocket_type
 {
-    SW_SOCK_TCP          =  1,
-    SW_SOCK_UDP          =  2,
-    SW_SOCK_TCP6         =  3,
-    SW_SOCK_UDP6         =  4,
-    SW_SOCK_UNIX_DGRAM   =  5,  //unix sock dgram
-    SW_SOCK_UNIX_STREAM  =  6,  //unix sock stream
+    SW_SOCK_TCP             =  1,
+    SW_SOCK_UDP             =  2,
+    SW_SOCK_TCP6            =  3,
+    SW_SOCK_UDP6            =  4,
+    SW_SOCK_UNIX_DGRAM      =  5,  //unix sock dgram
+    SW_SOCK_UNIX_STREAM     =  6,  //unix sock stream
+    SW_SOCK_NN_PULL         =  7,  // nanomsg pull stream
+    SW_SOCK_NN_PUSH         =  8,  // nanomsg push stream
+    SW_SOCK_NN_PAIR         =  9,  // nanomsg pair stream
+    SW_SOCK_NN_SUB          =  10,  // nanomsg sub stream
+    SW_SOCK_NN_PUB          =  11,  // nanomsg pub stream
+    SW_SOCK_NN_SURVEYOR     =  12,  // nanomsg surveyor stream
+    SW_SOCK_NN_RESPONDENT   =  13,  // nanomsg respondent stream
+    SW_SOCK_NN_BUS          =  14,  // nanomsg bus stream
 };
 
+#define SW_SOCK_SYS(type)      (type <= SW_SOCK_UNIX_STREAM)
+#define SW_SOCK_NN(type)       (type >= SW_SOCK_NN_PULL && type <= SW_SOCK_NN_BUS)
 #define SW_SOCK_SSL            (1u << 9)
 //-------------------------------------------------------------------------------
 enum swLogLevel
@@ -328,6 +340,7 @@ typedef struct
         struct sockaddr_in inet_v4;
         struct sockaddr_in6 inet_v6;
         struct sockaddr_un un;
+        char nn[MAXPATHLEN];
     } addr;
     socklen_t len;
 } swSocketAddress;

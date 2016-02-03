@@ -92,6 +92,16 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
+    //listen Nanomsg
+    if (serv->has_nn_sock == 1)
+    {
+        //listen server socket
+        if (swServer_listen(serv, NULL) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
     int create_pipe = serv->onPipeMessage ? 1 : 0;
 
     if (swProcessPool_create(&SwooleGS->event_workers, serv->worker_num, serv->max_request, 0, create_pipe) < 0)

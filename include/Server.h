@@ -295,6 +295,11 @@ struct _swServer
     uint32_t have_tcp_sock :1;
 
     /**
+     * have nanomsg listen socket
+     */
+    uint32_t have_nn_sock :1;
+
+    /**
      * oepn cpu affinity setting
      */
     uint32_t open_cpu_affinity :1;

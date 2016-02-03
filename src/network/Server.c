@@ -982,7 +982,11 @@ int swServer_add_listener(swServer *serv, int type, char *host, int port)
             serv->udp_socket_ipv6 = sock;
         }
     }
-    else
+    else if (SW_SOCK_NN(type))
+    {
+        serv->have_nn_sock = 1;
+    }
+    else 
     {
         if (type & SW_SOCK_SSL)
         {
@@ -1035,7 +1039,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
         }
 #endif
 
-        //TCP
+        //TCP or Nanomsg
         sock = swSocket_listen(ls->type, ls->host, ls->port, serv->backlog);
         if (sock < 0)
         {
@@ -1048,41 +1052,44 @@ int swServer_listen(swServer *serv, swReactor *reactor)
             reactor->add(reactor, sock, SW_FD_LISTEN);
         }
 
-#ifdef TCP_DEFER_ACCEPT
-        if (serv->tcp_defer_accept)
+        if (!SW_SOCK_NN(ls->type))
         {
-            if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
+#ifdef TCP_DEFER_ACCEPT
+            if (serv->tcp_defer_accept)
             {
-                swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
+                if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void*) &serv->tcp_defer_accept, sizeof(int)) < 0)
+                {
+                    swSysError("setsockopt(TCP_DEFER_ACCEPT) failed.");
+                }
             }
-        }
 #endif
 
 #ifdef TCP_FASTOPEN
-        if (serv->tcp_fastopen)
-        {
-            if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
+            if (serv->tcp_fastopen)
             {
-                swSysError("setsockopt(TCP_FASTOPEN) failed.");
+                if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void*) &serv->tcp_fastopen, sizeof(int)) < 0)
+                {
+                    swSysError("setsockopt(TCP_FASTOPEN) failed.");
+                }
             }
-        }
 #endif
 
 #ifdef SO_KEEPALIVE
-        if (serv->open_tcp_keepalive == 1)
-        {
-            sockopt = 1;
-            if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
+            if (serv->open_tcp_keepalive == 1)
             {
-                swSysError("setsockopt(SO_KEEPALIVE) failed.");
-            }
+                sockopt = 1;
+                if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &sockopt, sizeof(int)) < 0)
+                {
+                    swSysError("setsockopt(SO_KEEPALIVE) failed.");
+                }
 #ifdef TCP_KEEPIDLE
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
-            setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &serv->tcp_keepidle, sizeof(int));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &serv->tcp_keepinterval, sizeof(int));
+                setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &serv->tcp_keepcount, sizeof(int));
+#endif
+            }
 #endif
         }
-#endif
 
         ls->sock = sock;
         //save server socket to connection_list
@@ -1094,7 +1101,7 @@ int swServer_listen(swServer *serv, swReactor *reactor)
             serv->connection_list[sock].info.addr.inet_v4.sin_port = htons(ls->port);
         }
         //IPv6
-        else
+        else if (ls->type == SW_SOCK_TCP6)
         {
             serv->connection_list[sock].info.addr.inet_v6.sin6_port = htons(ls->port);
         }

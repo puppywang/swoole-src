@@ -1680,7 +1680,7 @@ int swReactorThread_start(swServer *serv, swReactor *main_reactor_ptr)
     }
 
     //listen TCP
-    if (serv->have_tcp_sock == 1)
+    if (serv->have_tcp_sock == 1 || serv->have_nn_sock == 1)
     {
         //listen server socket
         ret = swServer_listen(serv, main_reactor_ptr);
@@ -2165,7 +2165,7 @@ void swReactorThread_free(swServer *serv)
         return;
     }
 
-    if (serv->have_tcp_sock == 1)
+    if (serv->have_tcp_sock == 1 || serv->have_nn_sock == 1)
     {
         //create reactor thread
         for (i = 0; i < serv->reactor_num; i++)

@@ -204,6 +204,7 @@ int swSocket_create(int type)
 {
     int _domain;
     int _type;
+    int _is_nn = 0;
 
     switch (type)
     {
@@ -231,10 +232,50 @@ int swSocket_create(int type)
         _domain = PF_UNIX;
         _type = SOCK_STREAM;
         break;
+    case SW_SOCK_NN_PULL:
+        _domain = AF_SP;
+        _type == NN_PULL;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_PUSH:
+        _domain = AF_SP;
+        _type = NN_PUSH;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_PAIR:
+        _domain = AF_SP;
+        _type == NNP_PAIR;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_SUB:
+        _domain = AF_SP;
+        _type = NN_SUB;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_PUB:
+        _domain = AF_SP;
+        _type == NN_PUB;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_SURVEYOR:
+        _domain = AF_SP;
+        _type = NN_SURVEYOR;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_RESPONDENT:
+        _domain = AF_SP;
+        _type == NN_RESPONDENT;
+        _is_nn = 1;
+        break;
+    case SW_SOCK_NN_BUS:
+        _domain = AF_SP;
+        _type = NN_BUS;
+        _is_nn = 1;
+        break;
     default:
         return SW_ERR;
     }
-    return socket(_domain, _type, 0);
+    return _is_nn ? nn_socket(_domain, _type) : socket(_domain, _type, 0);
 }
 
 int swSocket_listen(int type, char *host, int port, int backlog)
@@ -253,12 +294,19 @@ int swSocket_listen(int type, char *host, int port, int backlog)
         swWarn("create socket failed. Error: %s[%d]", strerror(errno), errno);
         return SW_ERR;
     }
-    //reuse
-    option = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
 
+    if (type < SW_SOCK_NN_PULL) {
+        //reuse
+        option = 1;
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int));
+    }
+
+    // nanomsg socket
+    if (type >= SW_SOCK_NN_PULL && type <= SW_SOCK_NN_BUS) {
+        ret = nn_bind(sock, host);
+    }
     //unix socket
-    if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
+    else if (type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM)
     {
         bzero(&addr_un, sizeof(addr_un));
         unlink(host);
@@ -290,7 +338,12 @@ int swSocket_listen(int type, char *host, int port, int backlog)
         swWarn("bind(%s:%d) failed. Error: %s [%d]", host, port, strerror(errno), errno);
         return SW_ERR;
     }
-    if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
+    // nanomsg don't need listen.
+    if (type >= SW_SOCK_NN_PULL && type <= SW_SOCK_NN_BUS)
+    {
+        return sock;
+    }
+    else if (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM)
     {
         return sock;
     }
